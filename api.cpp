@@ -10,14 +10,14 @@ string generateKey() {
     return key;
 }
 
-void createUser(const httplib::Request& req, httplib::Response& res, tableJson& tjs) {
+void createUser(const httplib::Request& req, httplib::Response& res, tableJson& tjs, string& username) {
     if (req.body.empty()) {
         res.set_content("{\"error\": \"Request body is empty\"}", "application/json");
         return;
     }
     json requestBody;
     requestBody = json::parse(req.body);
-    string username = requestBody["username"];
+    username = requestBody["username"];
     string key = generateKey();
 
     string insertCmd = "INSERT INTO user VALUES ('" + username + "', '" + key + "')";
@@ -25,6 +25,31 @@ void createUser(const httplib::Request& req, httplib::Response& res, tableJson& 
     json response;
     response["key"] = key;
     res.set_content(response.dump(), "application/json"); 
+}
+
+void fillUserLot(tableJson& tjs, const string& username) { // заполняем таблицу user lot
+    string filename1 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user/1.csv";
+    string userInd;
+    rapidcsv::Document doc1(filename1);
+    size_t amountRow1 = doc1.GetRowCount();
+    for (size_t i = 0; i < amountRow1; i++) { 
+        if (doc1.GetCell<string>(1, i) == username) {
+            userInd = doc1.GetCell<string>(0, i);
+        }
+    }
+
+    string filename2 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/lot/1.csv";
+    vector<string> lots;
+    rapidcsv::Document doc2(filename2);
+    size_t amountRow2 = doc2.GetRowCount();
+    for (size_t i = 0; i < amountRow2; i++) { 
+        lots.push_back(doc2.GetCell<string>(0, i));
+    }
+    vector<string> commands;
+    for (auto& lot : lots) {
+        string cmd = "INSERT INTO user_lot VALUES ('" + userInd + "', '" + lot + "', '1000')";
+        insert(cmd, tjs);
+    }
 }
 
 void getLots(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос get lot

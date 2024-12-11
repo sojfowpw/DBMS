@@ -78,7 +78,9 @@ int main() {
         getPairs(req, res, tjs);
     });
     svr.Post("/user", [&](const httplib::Request& req, httplib::Response& res) {
-        createUser(req, res, tjs);
+        string username;
+        createUser(req, res, tjs, username);
+        fillUserLot(tjs, username);
     });
     cout << "Сервер запущен.\n";
     svr.listen("localhost", 7432);

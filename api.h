@@ -6,7 +6,8 @@
 #include "httplib.h"
 
 string generateKey();
-void createUser(const httplib::Request& req, httplib::Response& res, tableJson& tjs);
+void createUser(const httplib::Request& req, httplib::Response& res, tableJson& tjs, string& username);
+void fillUserLot(tableJson& tjs, const string& username); // заполняем таблицу user lot
 vector<string> parsingLots(); // парсинг json схемы с лотами
 void getLots(const httplib::Request& req, httplib::Response& res, tableJson& tjs); // запрос get lot
 void getPairs(const httplib::Request& req, httplib::Response& res, tableJson& tjs); // запрос get pair
