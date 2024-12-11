@@ -3,6 +3,9 @@
     "tuples_limit": 15,
     "structure": {
         "user": ["username", "key"],
-        "table2": ["column1", "column2"]
+        "user_lot": ["user_id", "lot_id", "quantity"],
+        "order": ["user_id", "pair_id", "quantity", "price", "type", "closed"],
+        "lot": ["name"],
+        "pair": ["first_lot_id", "second_lot_id"]
     }
 }
