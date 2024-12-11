@@ -27,6 +27,45 @@ void createUser(const httplib::Request& req, httplib::Response& res, tableJson& 
     res.set_content(response.dump(), "application/json"); 
 }
 
+void getLots(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос get lot
+    string filename = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/lot/1.csv";
+    rapidcsv::Document doc(filename);
+    vector<pair<int, string>> lots;
+    size_t amountRow = doc.GetRowCount();
+    for (size_t i = 0; i < amountRow; i++) {
+        lots.emplace_back(doc.GetCell<int>(0, i), doc.GetCell<string>(1, i));
+    }
+
+    json response = json::array();
+    for (auto& lot : lots) {
+        json lotJson;
+        lotJson["lot_id"] = lot.first;
+        lotJson["name"] = lot.second;
+        response.push_back(lotJson);
+    }
+    res.set_content(response.dump(), "application/json");
+}
+
+void getPairs(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос get pair
+    string filename = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/pair/1.csv";
+    rapidcsv::Document doc(filename);
+    vector<tuple<int, int, int>> pairs;
+    size_t amountRow = doc.GetRowCount();
+    for (size_t i = 0; i < amountRow; i++) {
+        pairs.emplace_back(doc.GetCell<int>(0, i), doc.GetCell<int>(1, i), doc.GetCell<int>(2, i));
+    }
+
+    json response = json::array();
+    for (auto& pair : pairs) {
+        json pairJson;
+        pairJson["pair_id"] = get<0>(pair);
+        pairJson["first_lot_id"] = get<1>(pair);
+        pairJson["second_lot_id"] = get<2>(pair);
+        response.push_back(pairJson);
+    }
+    res.set_content(response.dump(), "application/json");
+}
+
 vector<string> parsingLots() { // парсинг json схемы с лотами
     string filename = "/home/kali/Documents/GitHub/practice3_2024/lots.json"; 
     ifstream file(filename); // открываем файл для чтения

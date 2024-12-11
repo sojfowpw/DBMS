@@ -62,7 +62,7 @@ int main() {
     string lotPath = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/lot/1.csv";
     rapidcsv::Document doc(lotPath);
     size_t amountRow = doc.GetRowCount();
-    for (size_t i = 0; i < amountRow; i++) {
+    for (size_t i = 0; i < amountRow; i++) { // заполняем таблицу с парами
         for (size_t j = i + 1; j < amountRow; j++) {
             string cmd = "INSERT INTO pair VALUES ('" + doc.GetCell<string>(0, i) + "', '" + doc.GetCell<string>(0, j) + "')";
             insert(cmd, tjs);
@@ -71,6 +71,12 @@ int main() {
     cout << "\n\n";
 
     httplib::Server svr;
+    svr.Get("/lot", [&](const httplib::Request& req, httplib::Response& res) {
+        getLots(req, res, tjs);
+    });
+    svr.Get("/pair", [&](const httplib::Request& req, httplib::Response& res) {
+        getPairs(req, res, tjs);
+    });
     svr.Post("/user", [&](const httplib::Request& req, httplib::Response& res) {
         createUser(req, res, tjs);
     });
