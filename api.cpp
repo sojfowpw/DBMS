@@ -91,6 +91,32 @@ void getPairs(const httplib::Request& req, httplib::Response& res, tableJson& tj
     res.set_content(response.dump(), "application/json");
 }
 
+void getBalance(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос get balance
+    string userKey = req.get_header_value("X-USER-KEY");
+    string userId;
+    string filename1 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user/1.csv";
+    rapidcsv::Document doc1(filename1);
+    size_t amountRow1 = doc1.GetRowCount();
+    for (size_t i = 0; i < amountRow1; i++) {
+        if (doc1.GetCell<string>(2, i) == userKey) {
+            userId = doc1.GetCell<string>(0, i);
+        }
+    }
+    string filename2 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user_lot/1.csv";
+    rapidcsv::Document doc2(filename2);
+    size_t amountRow2 = doc2.GetRowCount();
+    json response = json::array();
+    json balanceJson;
+    for (size_t i = 0; i < amountRow2; i++) { 
+        if (doc2.GetCell<string>(1, i) == userId) {
+            balanceJson["lot_id"] = doc2.GetCell<int>(2, i);
+            balanceJson["quantity"] = doc2.GetCell<float>(3, i);
+            response.push_back(balanceJson);
+        }
+    }
+    res.set_content(response.dump(), "application/json");
+}
+
 vector<string> parsingLots() { // парсинг json схемы с лотами
     string filename = "/home/kali/Documents/GitHub/practice3_2024/lots.json"; 
     ifstream file(filename); // открываем файл для чтения

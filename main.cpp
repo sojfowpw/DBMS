@@ -77,6 +77,9 @@ int main() {
     svr.Get("/pair", [&](const httplib::Request& req, httplib::Response& res) {
         getPairs(req, res, tjs);
     });
+    svr.Get("/balance", [&](const httplib::Request& req, httplib::Response& res) {
+        getBalance(req, res, tjs);
+    });
     svr.Post("/user", [&](const httplib::Request& req, httplib::Response& res) {
         string username;
         createUser(req, res, tjs, username);
