@@ -2,11 +2,13 @@
 #include "insert.h"
 #include "delete.h"
 #include "select.h"
+#include "api.h"
 
 #include "parser.cpp"
 #include "insert.cpp"
 #include "delete.cpp"
 #include "select.cpp"
+#include "api.cpp"
 
 #include <iostream>
 #include <sys/socket.h> // функции для работы с сокетами
@@ -16,8 +18,6 @@
 #include <thread>
 #include <sstream>
 #include <mutex>
-
-#include "httplib.h"
 
 using namespace std;
 
@@ -50,40 +50,26 @@ Commands stringToCommand(const string& cmd) { // определение кома
     }
 }
 
-string generateKey() {
-    const string charset = "0123456789abcdef";
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> distribution(0, charset.size() - 1);
-    string key;
-    for (int i = 0; i < 32; i++) {
-        key += charset[distribution(gen)];
-    }
-    return key;
-}
-
-void createUser(const httplib::Request& req, httplib::Response& res, tableJson& tjs) {
-    if (req.body.empty()) {
-        res.set_content("{\"error\": \"Request body is empty\"}", "application/json");
-        return;
-    }
-    json requestBody;
-    requestBody = json::parse(req.body);
-    string username = requestBody["username"];
-    string key = generateKey();
-
-    string insertCmd = "INSERT INTO user VALUES ('" + username + "', '" + key + "')";
-    insert(insertCmd, tjs);
-    json response;
-    response["key"] = key;
-    res.set_content(response.dump(), "application/json"); 
-}
-
 int main() {
     mutex mtx;
     tableJson tjs;
     parsing(tjs);
+    vector<string> lots = parsingLots(); // парсинг лотов в вектор
+    for (auto& lot : lots) { // запись лотов в таблицу lot
+        string cmd = "INSERT INTO lot VALUES ('" + lot + "')";
+        insert(cmd, tjs);
+    }
+    string lotPath = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/lot/1.csv";
+    rapidcsv::Document doc(lotPath);
+    size_t amountRow = doc.GetRowCount();
+    for (size_t i = 0; i < amountRow; i++) {
+        for (size_t j = i + 1; j < amountRow; j++) {
+            string cmd = "INSERT INTO pair VALUES ('" + doc.GetCell<string>(0, i) + "', '" + doc.GetCell<string>(0, j) + "')";
+            insert(cmd, tjs);
+        }
+    }
     cout << "\n\n";
+
     httplib::Server svr;
     svr.Post("/user", [&](const httplib::Request& req, httplib::Response& res) {
         createUser(req, res, tjs);
