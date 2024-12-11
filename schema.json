@@ -1,0 +1,8 @@
+{
+    "name": "Scheme",
+    "tuples_limit": 15,
+    "structure": {
+        "user": ["username", "key"],
+        "table2": ["column1", "column2"]
+    }
+}
