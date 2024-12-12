@@ -91,6 +91,9 @@ int main() {
     svr.Post("/order", [&](const httplib::Request& req, httplib::Response& res) {
         createOrder(req, res, tjs);
     });
+    svr.Delete("/order", [&](const httplib::Request& req, httplib::Response& res) {
+        delOrder(req, res, tjs);
+    });
     cout << "Сервер запущен.\n";
     svr.listen("localhost", 7432);
 

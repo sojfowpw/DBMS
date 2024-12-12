@@ -1,3 +1,6 @@
+#include "api.h"
+#include "delete.h"
+
 string generateKey() {
     const string charset = "0123456789abcdef";
     random_device rd;
@@ -135,7 +138,7 @@ vector<string> parsingLots() { // парсинг json схемы с лотами
     return lots;
 }
 
-void updateBalance(string userId, string pairId, float quantity, float price, string type, tableJson& tjs) { // обновление баланса
+void updateBalance(string userId, string pairId, string type, float quantity, float price, tableJson& tjs) { // обновление баланса
     int sell, buy;
     float newBalance;
     string pairFile = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/pair/1.csv";
@@ -187,6 +190,65 @@ void updateBalance(string userId, string pairId, float quantity, float price, st
     }
 }
 
+void processing(tableJson& tjs) {
+    string orderId, userId, pairId, type;
+    float quantity, price;
+    string filename = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/order/1.csv";
+    rapidcsv::Document doc(filename);
+    size_t amountRow;
+    amountRow = doc.GetRowCount();
+    for (size_t i = 0; i < amountRow; i++) {
+        if (doc.GetCell<string>(6, i) == "0" && doc.GetCell<string>(5, i) == "buy") {
+            orderId = doc.GetCell<string>(0, i);
+            userId = doc.GetCell<string>(1, i);
+            pairId = doc.GetCell<string>(2, i);
+            quantity = doc.GetCell<float>(3, i);
+            price = doc.GetCell<float>(4, i);
+            type = doc.GetCell<string>(5, i);
+            break;
+        }
+    }
+    bool isFind = false;
+    string q, p;
+    for (size_t i = 0; i < amountRow; i++) {
+        if (doc.GetCell<string>(0, i) != orderId && doc.GetCell<string>(1, i) != userId) {
+            if (doc.GetCell<string>(2, i) == pairId && doc.GetCell<string>(6, i) == "0" && doc.GetCell<string>(5, i) != type) {
+                if (doc.GetCell<float>(3, i) <= quantity && doc.GetCell<float>(4, i) <= price) {
+                    isFind = true;
+                    q = doc.GetCell<string>(3, i);
+                    p = doc.GetCell<string>(4, i);
+                    doc.SetCell<string>(6, i, "closed");
+                    doc.Save(filename);
+                    updateBalance(doc.GetCell<string>(1, i), doc.GetCell<string>(2, i), doc.GetCell<string>(5, i),
+                    doc.GetCell<float>(3, i), doc.GetCell<float>(4, i), tjs);
+                    break;
+                }
+            }
+        }
+    }
+    if (isFind == false) {
+        return;
+    }
+    string insertCmd = "";
+    for (size_t i = 0; i < amountRow; i++) {
+        if (doc.GetCell<string>(0, i) == orderId) {
+            float diff = quantity - stof(q);
+            if (diff != 0) {
+                insertCmd = "INSERT INTO order VALUES ('" + userId + "', '" + pairId + "', '" + to_string(diff) + "', '" +
+                to_string(price) + "', '" + type + "', '0')";
+            }
+            doc.SetCell<string>(3, i, q);
+            doc.SetCell<string>(4, i, p);
+            doc.SetCell<string>(6, i, "closed");
+            doc.Save(filename);
+            updateBalance(userId, pairId, type, stof(q), stof(p), tjs);
+        }
+    }
+    if (insertCmd != "") {
+        insert(insertCmd, tjs);
+    }
+}
+
 void createOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос на создание ордера
     if (req.body.empty()) {
         res.set_content("{\"error\": \"Request body is empty\"}", "application/json");
@@ -223,7 +285,7 @@ void createOrder(const httplib::Request& req, httplib::Response& res, tableJson&
     json response;
     response["order_id"] = orderId;
 
-    updateBalance(userId, to_string(pairId), quantity, price, type, tjs);
+    processing(tjs);
 
     res.set_content(response.dump(), "application/json");
 }
@@ -258,5 +320,35 @@ void getOrder(const httplib::Request& req, httplib::Response& res, tableJson& tj
         orderJson["closed"] = order[6];
         response.push_back(orderJson);
     }
+    res.set_content(response.dump(), "application/json");
+}
+
+void delOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs) {
+    string userKey = req.get_header_value("X-USER-KEY");
+    string userId;
+    string filename1 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user/1.csv";
+    rapidcsv::Document doc1(filename1);
+    size_t amountRow1 = doc1.GetRowCount();
+    for (size_t i = 0; i < amountRow1; i++) {
+        if (doc1.GetCell<string>(2, i) == userKey) {
+            userId = doc1.GetCell<string>(0, i);
+        }
+    }
+    json requestBody;
+    requestBody = json::parse(req.body);
+    int orderId = requestBody["order_id"];
+
+    string filename2 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/order/1.csv";
+    rapidcsv::Document doc2(filename2);
+    size_t amountRow2 = doc2.GetRowCount();
+    for (size_t i = 0; i < amountRow2; i++) {
+        if (doc2.GetCell<string>(1, i) == userId && doc2.GetCell<int>(0, i) == orderId && doc2.GetCell<string>(6, i) == "0") {
+            string delCmd = "DELETE FROM order WHERE order.order_id = '" + to_string(orderId) + "'";
+            del(delCmd, tjs);
+            break;
+        }
+    }
+    json response;
+    response["message"] = "Order deleted successfully";
     res.set_content(response.dump(), "application/json");
 }
