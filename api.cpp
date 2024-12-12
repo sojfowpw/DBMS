@@ -135,6 +135,58 @@ vector<string> parsingLots() { // парсинг json схемы с лотами
     return lots;
 }
 
+void updateBalance(string userId, string pairId, float quantity, float price, string type, tableJson& tjs) { // обновление баланса
+    int sell, buy;
+    float newBalance;
+    string pairFile = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/pair/1.csv";
+    rapidcsv::Document docP(pairFile);
+    size_t pairRow = docP.GetRowCount();
+    for (size_t i = 0; i < pairRow; i++) {
+        if (docP.GetCell<string>(0, i) == pairId) {
+            if (type == "buy") {
+                buy = docP.GetCell<int>(1, i);
+                sell = docP.GetCell<int>(2, i);
+                string userLotFile = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user_lot/1.csv";
+                rapidcsv::Document docUL(userLotFile);
+                size_t userLotRow = docUL.GetRowCount();
+                for (size_t j = 0; j < userLotRow; j++) {
+                    if (docUL.GetCell<string>(1, j) == userId) {
+                        if (docUL.GetCell<int>(2, j) == buy) {
+                            newBalance = docUL.GetCell<float>(3, j) + quantity; // добавляем купленное количество
+                            docUL.SetCell<float>(3, j, newBalance);
+                        }
+                        if (docUL.GetCell<int>(2, j) == sell) {
+                            newBalance = docUL.GetCell<float>(3, j) - (quantity * price); // вычитаем стоимость покупки
+                            docUL.SetCell<float>(3, j, newBalance);
+                        }
+                    }
+                }
+                docUL.Save(userLotFile);
+            }
+            if (type == "sell") {
+                sell = docP.GetCell<int>(1, i);
+                buy = docP.GetCell<int>(2, i);
+                string userLotFile = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user_lot/1.csv";
+                rapidcsv::Document docUL(userLotFile);
+                size_t userLotRow = docUL.GetRowCount();
+                for (size_t j = 0; j < userLotRow; j++) {
+                    if (docUL.GetCell<string>(1, j) == userId) {
+                        if (docUL.GetCell<int>(2, j) == buy) {
+                            newBalance = docUL.GetCell<float>(3, j) + (quantity * price); // добавляем купленное количество
+                            docUL.SetCell<float>(3, j, newBalance);
+                        }
+                        if (docUL.GetCell<int>(2, j) == sell) {
+                            newBalance = docUL.GetCell<float>(3, j) - quantity; // вычитаем стоимость покупки
+                            docUL.SetCell<float>(3, j, newBalance);
+                        }
+                    }
+                }
+                docUL.Save(userLotFile);
+            }
+        }
+    }
+}
+
 void createOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос на создание ордера
     if (req.body.empty()) {
         res.set_content("{\"error\": \"Request body is empty\"}", "application/json");
@@ -154,11 +206,11 @@ void createOrder(const httplib::Request& req, httplib::Response& res, tableJson&
     json requestBody;
     requestBody = json::parse(req.body);
     int pairId = requestBody["pair_id"];
-    int quantity = requestBody["quantity"];
+    float quantity = requestBody["quantity"];
     float price = requestBody["price"];
     string type = requestBody["type"];
     string insertCmd = "INSERT INTO order VALUES ('" + userId + "', '" + to_string(pairId) + "', '" + to_string(quantity) +
-    "', '" + to_string(price) + "', '" + type + "')";
+    "', '" + to_string(price) + "', '" + type + "', '0')";
     insert(insertCmd, tjs);
 
     string filePath2 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/order/1.csv";
@@ -170,6 +222,9 @@ void createOrder(const httplib::Request& req, httplib::Response& res, tableJson&
     }
     json response;
     response["order_id"] = orderId;
+
+    updateBalance(userId, to_string(pairId), quantity, price, type, tjs);
+
     res.set_content(response.dump(), "application/json");
 }
 
@@ -187,7 +242,7 @@ void getOrder(const httplib::Request& req, httplib::Response& res, tableJson& tj
         row.push_back(doc.GetCell<string>(3, i)); // quantity
         row.push_back(doc.GetCell<string>(4, i)); // price
         row.push_back(doc.GetCell<string>(5, i)); // type
-        //row.push_back(doc.GetCell<string>(6, i)); // closed
+        row.push_back(doc.GetCell<string>(6, i)); // closed
         orders.push_back(row);
     }
 
@@ -197,10 +252,10 @@ void getOrder(const httplib::Request& req, httplib::Response& res, tableJson& tj
         orderJson["order_id"] = stoi(order[0]);
         orderJson["user_id"] = stoi(order[1]);
         orderJson["pair_id"] = stoi(order[2]);
-        orderJson["quantity"] = stoi(order[3]);
+        orderJson["quantity"] = stof(order[3]);
         orderJson["price"] = stof(order[4]);
         orderJson["type"] = order[5];
-        //orderJson["closed"] = order[6];
+        orderJson["closed"] = order[6];
         response.push_back(orderJson);
     }
     res.set_content(response.dump(), "application/json");
