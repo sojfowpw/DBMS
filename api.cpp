@@ -84,8 +84,8 @@ void getPairs(const httplib::Request& req, httplib::Response& res, tableJson& tj
     for (auto& pair : pairs) {
         json pairJson;
         pairJson["pair_id"] = get<0>(pair);
-        pairJson["first_lot_id"] = get<1>(pair);
-        pairJson["second_lot_id"] = get<2>(pair);
+        pairJson["sale_lot_id"] = get<1>(pair);
+        pairJson["buy_lot_id"] = get<2>(pair);
         response.push_back(pairJson);
     }
     res.set_content(response.dump(), "application/json");
@@ -133,4 +133,75 @@ vector<string> parsingLots() { // парсинг json схемы с лотами
     jparsed = json::parse(json_content);
     vector<string> lots = jparsed["lots"].get<vector<string>>(); // парсим лоты в вектор
     return lots;
+}
+
+void createOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос на создание ордера
+    if (req.body.empty()) {
+        res.set_content("{\"error\": \"Request body is empty\"}", "application/json");
+        return;
+    }
+    string userKey = req.get_header_value("X-USER-KEY");
+    string userId;
+    string filename1 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user/1.csv";
+    rapidcsv::Document doc1(filename1);
+    size_t amountRow1 = doc1.GetRowCount();
+    for (size_t i = 0; i < amountRow1; i++) {
+        if (doc1.GetCell<string>(2, i) == userKey) {
+            userId = doc1.GetCell<string>(0, i);
+        }
+    }
+
+    json requestBody;
+    requestBody = json::parse(req.body);
+    int pairId = requestBody["pair_id"];
+    int quantity = requestBody["quantity"];
+    float price = requestBody["price"];
+    string type = requestBody["type"];
+    string insertCmd = "INSERT INTO order VALUES ('" + userId + "', '" + to_string(pairId) + "', '" + to_string(quantity) +
+    "', '" + to_string(price) + "', '" + type + "')";
+    insert(insertCmd, tjs);
+
+    string filePath2 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/order/1.csv";
+    rapidcsv::Document doc2(filePath2);
+    size_t amountRow2 = doc2.GetRowCount();
+    int orderId;
+    for (size_t i = 0; i < amountRow2; i++) {
+        orderId = doc2.GetCell<int>(0, i);
+    }
+    json response;
+    response["order_id"] = orderId;
+    res.set_content(response.dump(), "application/json");
+}
+
+void getOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос get order
+    string filename = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/order/1.csv";
+    rapidcsv::Document doc(filename);
+    vector<vector<string>> orders;
+    size_t amountRow;
+    amountRow = doc.GetRowCount();
+    for (size_t i = 0; i < amountRow; i++) {
+        vector<std::string> row;
+        row.push_back(doc.GetCell<string>(0, i)); // order_id
+        row.push_back(doc.GetCell<string>(1, i)); // user_id
+        row.push_back(doc.GetCell<string>(2, i)); // pair_id
+        row.push_back(doc.GetCell<string>(3, i)); // quantity
+        row.push_back(doc.GetCell<string>(4, i)); // price
+        row.push_back(doc.GetCell<string>(5, i)); // type
+        //row.push_back(doc.GetCell<string>(6, i)); // closed
+        orders.push_back(row);
+    }
+
+    json response = json::array();
+    for (auto& order : orders) {
+        json orderJson;
+        orderJson["order_id"] = stoi(order[0]);
+        orderJson["user_id"] = stoi(order[1]);
+        orderJson["pair_id"] = stoi(order[2]);
+        orderJson["quantity"] = stoi(order[3]);
+        orderJson["price"] = stof(order[4]);
+        orderJson["type"] = order[5];
+        //orderJson["closed"] = order[6];
+        response.push_back(orderJson);
+    }
+    res.set_content(response.dump(), "application/json");
 }

@@ -80,10 +80,16 @@ int main() {
     svr.Get("/balance", [&](const httplib::Request& req, httplib::Response& res) {
         getBalance(req, res, tjs);
     });
+    svr.Get("/order", [&](const httplib::Request& req, httplib::Response& res) {
+        getOrder(req, res, tjs);
+    });
     svr.Post("/user", [&](const httplib::Request& req, httplib::Response& res) {
         string username;
         createUser(req, res, tjs, username);
         fillUserLot(tjs, username);
+    });
+    svr.Post("/order", [&](const httplib::Request& req, httplib::Response& res) {
+        createOrder(req, res, tjs);
     });
     cout << "Сервер запущен.\n";
     svr.listen("localhost", 7432);
