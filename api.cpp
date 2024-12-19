@@ -1,5 +1,6 @@
 #include "api.h"
 #include "delete.h"
+#include "client.cpp"
 
 string generateKey() {
     const string charset = "0123456789abcdef";
@@ -13,7 +14,7 @@ string generateKey() {
     return key;
 }
 
-void createUser(const httplib::Request& req, httplib::Response& res, tableJson& tjs, string& username) {
+void createUser(const httplib::Request& req, httplib::Response& res, tableJson& tjs, string& username, pair<string, int> db_url) { // получаем ip и port DB
     if (req.body.empty()) {
         res.set_content("{\"error\": \"Request body is empty\"}", "application/json");
         return;
@@ -24,7 +25,7 @@ void createUser(const httplib::Request& req, httplib::Response& res, tableJson& 
     string key = generateKey();
 
     string insertCmd = "INSERT INTO user VALUES ('" + username + "', '" + key + "')";
-    insert(insertCmd, tjs);
+    db_request(db_url, insertCmd); 
     json response;
     response["key"] = key;
     res.set_content(response.dump(), "application/json"); 
@@ -120,7 +121,7 @@ void getBalance(const httplib::Request& req, httplib::Response& res, tableJson& 
     res.set_content(response.dump(), "application/json");
 }
 
-vector<string> parsingLots() { // парсинг json схемы с лотами
+vector<string> parsingLots(pair<string, int>& db_url) { // парсинг json схемы с лотами
     string filename = "/home/kali/Documents/GitHub/practice3_2024/lots.json"; 
     ifstream file(filename); // открываем файл для чтения
     if (!file.is_open()) {
@@ -135,6 +136,8 @@ vector<string> parsingLots() { // парсинг json схемы с лотами
     json jparsed;
     jparsed = json::parse(json_content);
     vector<string> lots = jparsed["lots"].get<vector<string>>(); // парсим лоты в вектор
+    db_url.first = jparsed["database_ip"];
+    db_url.second = jparsed["database_port"];
     return lots;
 }
 
@@ -190,7 +193,7 @@ void updateBalance(string userId, string pairId, string type, float quantity, fl
     }
 }
 
-void processing(tableJson& tjs) {
+void processing(tableJson& tjs, pair<string, int> db_url) {
     string orderId, userId, pairId, type;
     float quantity, price;
     string filename = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/order/1.csv";
@@ -245,11 +248,11 @@ void processing(tableJson& tjs) {
         }
     }
     if (insertCmd != "") {
-        insert(insertCmd, tjs);
+        db_request(db_url, insertCmd);
     }
 }
 
-void createOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs) { // запрос на создание ордера
+void createOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs, pair<string, int> db_url) { // запрос на создание ордера
     if (req.body.empty()) {
         res.set_content("{\"error\": \"Request body is empty\"}", "application/json");
         return;
@@ -273,7 +276,7 @@ void createOrder(const httplib::Request& req, httplib::Response& res, tableJson&
     string type = requestBody["type"];
     string insertCmd = "INSERT INTO order VALUES ('" + userId + "', '" + to_string(pairId) + "', '" + to_string(quantity) +
     "', '" + to_string(price) + "', '" + type + "', '0')";
-    insert(insertCmd, tjs);
+    db_request(db_url, insertCmd);
 
     string filePath2 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/order/1.csv";
     rapidcsv::Document doc2(filePath2);
@@ -285,7 +288,7 @@ void createOrder(const httplib::Request& req, httplib::Response& res, tableJson&
     json response;
     response["order_id"] = orderId;
 
-    processing(tjs);
+    processing(tjs, db_url);
 
     res.set_content(response.dump(), "application/json");
 }
@@ -323,7 +326,7 @@ void getOrder(const httplib::Request& req, httplib::Response& res, tableJson& tj
     res.set_content(response.dump(), "application/json");
 }
 
-void delOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs) {
+void delOrder(const httplib::Request& req, httplib::Response& res, tableJson& tjs, pair<string, int> db_url) {
     string userKey = req.get_header_value("X-USER-KEY");
     string userId;
     string filename1 = "/home/kali/Documents/GitHub/practice3_2024/" + tjs.schemeName + "/user/1.csv";
@@ -344,7 +347,7 @@ void delOrder(const httplib::Request& req, httplib::Response& res, tableJson& tj
     for (size_t i = 0; i < amountRow2; i++) {
         if (doc2.GetCell<string>(1, i) == userId && doc2.GetCell<int>(0, i) == orderId && doc2.GetCell<string>(6, i) == "0") {
             string delCmd = "DELETE FROM order WHERE order.order_id = '" + to_string(orderId) + "'";
-            del(delCmd, tjs);
+            db_request(db_url, delCmd);
             break;
         }
     }

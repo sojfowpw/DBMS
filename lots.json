@@ -1,3 +1,5 @@
 {
-    "lots": ["RUB", "USD", "BTC"]
+    "lots": ["RUB", "USD", "BTC"],
+    "database_ip": "127.0.0.1",
+    "database_port": 7432
 }
